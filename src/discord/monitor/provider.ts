@@ -416,6 +416,66 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
       ),
     );
   }
+
+  // Add /exec as a Discord-native command.
+  // This is a bridge to the host-shell flow protected by exec approvals.
+  if (nativeEnabled) {
+    commandSpecs.push({
+      name: "exec",
+      description: "Run a shell command (requires approval).",
+      acceptsArgs: true,
+    });
+  }
+
+  // Discord requires application command names to be unique. Dedupe defensively.
+  // Prefer *later* definitions so provider-injected commands (like /exec) win,
+  // but apply explicit tiebreakers for known collisions.
+  if (nativeEnabled) {
+    const keyFor = (spec: any) =>
+      String(spec?.name ?? "")
+        .trim()
+        .toLowerCase();
+
+    const prefer = (existing: any, incoming: any): any => {
+      const k = keyFor(incoming);
+      // Special-case /exec: keep the provider-injected exec (acceptsArgs + our description)
+      // so Discord doesn't route /exec to some legacy/placeholder command.
+      if (k === "exec") {
+        const looksInjected = (s: any) =>
+          s?.acceptsArgs === true &&
+          typeof s?.description === "string" &&
+          s.description.toLowerCase().includes("requires approval");
+        const a = looksInjected(existing);
+        const b = looksInjected(incoming);
+        if (a && !b) return existing;
+        if (b && !a) return incoming;
+        // If both/neither match, prefer incoming (later wins).
+        return incoming;
+      }
+      return incoming;
+    };
+
+    const byName = new Map<string, (typeof commandSpecs)[number]>();
+    const dropped: string[] = [];
+    for (const spec of commandSpecs) {
+      const key = keyFor(spec as any);
+      if (!key) continue;
+      if (byName.has(key)) dropped.push(key);
+      const chosen = byName.has(key) ? prefer(byName.get(key), spec) : spec;
+      byName.set(key, chosen as any);
+    }
+    if (dropped.length) {
+      runtime.log?.(
+        warn(
+          `discord: dropped ${dropped.length} duplicate native command name(s): ${Array.from(
+            new Set(dropped),
+          ).join(", ")}`,
+        ),
+      );
+    }
+    commandSpecs = Array.from(byName.values());
+  }
+
   const commands = commandSpecs.map((spec) =>
     createDiscordNativeCommand({
       command: spec,

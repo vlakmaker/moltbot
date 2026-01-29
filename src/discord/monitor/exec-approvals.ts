@@ -339,8 +339,42 @@ export class DiscordExecApprovalHandler {
 
     const approvers = this.opts.config.approvers ?? [];
 
+    const normalizeDiscordUserId = (raw: unknown): string | null => {
+      const s = String(raw ?? "").trim();
+      if (!s) return null;
+      // Accept canonical recipient formats.
+      const lowered = s.toLowerCase();
+      if (lowered.startsWith("user:")) {
+        const id = s.slice(s.indexOf(":") + 1).trim();
+        return /^\d+$/.test(id) ? id : null;
+      }
+      // Accept bare Discord user ids.
+      if (/^\d+$/.test(s)) return s;
+      return null;
+    };
+
+    const formatErr = (err: unknown): string => {
+      const anyErr = err as any;
+      const bits: string[] = [];
+      if (anyErr?.status !== undefined) bits.push(`status=${anyErr.status}`);
+      if (anyErr?.code !== undefined) bits.push(`code=${anyErr.code}`);
+      if (anyErr?.message) bits.push(`message=${anyErr.message}`);
+      let extra = "";
+      try {
+        extra = JSON.stringify(anyErr);
+      } catch {
+        extra = String(err);
+      }
+      const meta = bits.length ? ` (${bits.join(" ")})` : "";
+      return `${String(err)}${meta} ${extra}`.trim();
+    };
+
     for (const approver of approvers) {
-      const userId = String(approver);
+      const userId = normalizeDiscordUserId(approver);
+      if (!userId) {
+        logError(`discord exec approvals: invalid approver id: ${String(approver)}`);
+        continue;
+      }
       try {
         // Create DM channel
         const dmChannel = (await discordRequest(
@@ -387,7 +421,7 @@ export class DiscordExecApprovalHandler {
 
         logDebug(`discord exec approvals: sent approval ${request.id} to user ${userId}`);
       } catch (err) {
-        logError(`discord exec approvals: failed to notify user ${userId}: ${String(err)}`);
+        logError(`discord exec approvals: failed to notify user ${userId}: ${formatErr(err)}`);
       }
     }
   }

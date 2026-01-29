@@ -196,6 +196,11 @@ export function createExecApprovalForwarder(
 
   const handleRequested = async (request: ExecApprovalRequest) => {
     const cfg = getConfig();
+
+    // If Discord exec approval buttons are enabled, prefer that UI and avoid
+    // posting a separate forwarded text prompt (prevents duplicate messages).
+    if (cfg.channels?.discord?.execApprovals?.enabled) return;
+
     const config = cfg.approvals?.exec;
     if (!shouldForward({ config, request })) return;
 

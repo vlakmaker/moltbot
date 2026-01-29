@@ -437,6 +437,44 @@ export function createDiscordNativeCommand(params: {
     options = options;
 
     async run(interaction: CommandInteraction) {
+      // Hard bypass for Discord-native /exec: do not depend on command registry resolution.
+      // This prevents the legacy "Usage: ! <command>" handler from being selected accidentally.
+      if ((interaction as any).commandName === "exec") {
+        // /exec has historically had multiple option schemas in the wild ("input", "options",
+        // and even subcommand-based shapes). Be defensive and extract the first string value.
+        const extractFirstString = (): string => {
+          const direct =
+            interaction.options.getString("input") ?? interaction.options.getString("options");
+          if (direct) return direct;
+          const data = (interaction.options as any)?.data;
+          const stack: any[] = Array.isArray(data) ? [...data] : [];
+          while (stack.length) {
+            const cur = stack.shift();
+            if (!cur) continue;
+            if (typeof cur.value === "string") return cur.value;
+            const opts = cur.options;
+            if (Array.isArray(opts)) stack.unshift(...opts);
+          }
+          return "";
+        };
+
+        const input = extractFirstString();
+        const trimmed = input.trim();
+        const prompt = trimmed ? `! ${trimmed}` : "!";
+        await dispatchDiscordCommandInteraction({
+          interaction,
+          prompt,
+          command: commandDefinition,
+          commandArgs: undefined,
+          cfg,
+          discordConfig,
+          accountId,
+          sessionPrefix,
+          preferFollowUp: false,
+        });
+        return;
+      }
+
       const commandArgs = argDefinitions?.length
         ? readDiscordCommandArgs(interaction, argDefinitions)
         : command.acceptsArgs
@@ -448,7 +486,22 @@ export function createDiscordNativeCommand(params: {
             raw: serializeCommandArgs(commandDefinition, commandArgs) ?? commandArgs.raw,
           } satisfies CommandArgs)
         : undefined;
-      const prompt = buildCommandTextFromArgs(commandDefinition, commandArgsWithRaw);
+      let prompt = buildCommandTextFromArgs(commandDefinition, commandArgsWithRaw);
+
+      // Discord-native /exec: route through the existing host-shell flow ("! <cmd>")
+      // so approvals + button UX apply consistently.
+      // IMPORTANT: key off the actual interaction command name to avoid registry mismatches.
+      if (
+        (interaction as any).commandName === "exec" ||
+        commandDefinition.nativeName === "exec" ||
+        commandDefinition.key === "exec"
+      ) {
+        const input =
+          interaction.options.getString("input") ?? interaction.options.getString("options") ?? "";
+        const trimmed = input.trim();
+        prompt = trimmed ? `! ${trimmed}` : "!";
+      }
+
       await dispatchDiscordCommandInteraction({
         interaction,
         prompt,
