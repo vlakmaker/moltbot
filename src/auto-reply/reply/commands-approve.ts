@@ -27,11 +27,11 @@ function parseApproveCommand(raw: string): ParsedApproveCommand | null {
   if (!trimmed.toLowerCase().startsWith(COMMAND)) return null;
   const rest = trimmed.slice(COMMAND.length).trim();
   if (!rest) {
-    return { ok: false, error: "Usage: /approve <id> allow-once|allow-always|deny" };
+    return { ok: false, error: "Usage: /approve <requestId> allow-once|allow-always|deny" };
   }
   const tokens = rest.split(/\s+/).filter(Boolean);
   if (tokens.length < 2) {
-    return { ok: false, error: "Usage: /approve <id> allow-once|allow-always|deny" };
+    return { ok: false, error: "Usage: /approve <requestId> allow-once|allow-always|deny" };
   }
 
   const first = tokens[0].toLowerCase();
@@ -51,7 +51,7 @@ function parseApproveCommand(raw: string): ParsedApproveCommand | null {
       id: tokens[0],
     };
   }
-  return { ok: false, error: "Usage: /approve <id> allow-once|allow-always|deny" };
+  return { ok: false, error: "Usage: /approve <requestId> allow-once|allow-always|deny" };
 }
 
 function buildResolvedByLabel(params: Parameters<CommandHandler>[0]): string {

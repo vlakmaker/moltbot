@@ -115,7 +115,7 @@ function buildRequestMessage(request: ExecApprovalRequest, nowMs: number) {
   if (request.request.ask) lines.push(`Ask: ${request.request.ask}`);
   const expiresIn = Math.max(0, Math.round((request.expiresAtMs - nowMs) / 1000));
   lines.push(`Expires in: ${expiresIn}s`);
-  lines.push("Reply with: /approve <id> allow-once|allow-always|deny");
+  lines.push(`Reply with: /approve ${request.id} allow-once|allow-always|deny`);
   return lines.join("\n");
 }
 
