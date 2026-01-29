@@ -1075,6 +1075,11 @@ export function createExecTool(
               return;
             }
 
+            emitExecSystemEvent(
+              `Exec approved (node=${nodeId} id=${approvalId}, decision=${approvalDecision ?? "allow-once"}): executing ${commandText}`,
+              { sessionKey: notifySessionKey, contextKey },
+            );
+
             let runningTimer: NodeJS.Timeout | null = null;
             if (approvalRunningNoticeMs > 0) {
               runningTimer = setTimeout(() => {
@@ -1269,6 +1274,11 @@ export function createExecTool(
               );
               return;
             }
+
+            emitExecSystemEvent(
+              `Exec approved (gateway id=${approvalId}, decision=${decision}): executing ${commandText}`,
+              { sessionKey: notifySessionKey, contextKey },
+            );
 
             if (allowlistMatches.length > 0) {
               const seen = new Set<string>();
