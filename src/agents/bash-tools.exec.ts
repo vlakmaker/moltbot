@@ -1105,9 +1105,7 @@ export function createExecTool(
             content: [
               {
                 type: "text",
-                text:
-                  `${warningText}Approval required (REQ-${approvalSlug}, id ${approvalId}). ` +
-                  "Approve to run; updates will arrive after completion.",
+                text: `${warningText}Approval requested (REQ-${approvalSlug}). Check the approval request message for details.`,
               },
             ],
             details: {
@@ -1342,8 +1340,7 @@ export function createExecTool(
                 type: "text",
                 text:
                   `${warningText}` +
-                  `Approval required (REQ-${approvalSlug}, id ${approvalId}). ` +
-                  "Approve to run; updates will arrive after completion.",
+                  `Approval requested (REQ-${approvalSlug}). Check the approval request message for details.`,
               },
             ],
             details: {
